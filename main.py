@@ -26,11 +26,15 @@ if sys.platform == 'darwin':
     matplotlib.use("tkagg")
 import matplotlib.pyplot as plt
 
+import setproctitle
+
 # plt.ion()
 # fig, ax = plt.subplots(1,4, figsize=(10, 2.5), facecolor="whitesmoke")
 
 
 args = get_args()
+
+setproctitle.setproctitle(args.exp_name)
 
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)

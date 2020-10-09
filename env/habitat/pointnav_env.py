@@ -204,6 +204,15 @@ class PointNavigation_Env(habitat.RLEnv):
         args = self.args
         self.timestep += 1
 
+        # follow the instructions in https://github.com/devendrachaplot/Neural-SLAM/issues/4
+        if self._previous_action == 0:
+            if self.timestep >= args.max_episode_length:
+                done = True
+            else:
+                done = False
+            null_state = np.zeros((3, args.frame_height, args.frame_width))
+            return null_state, 0, done, self.info
+
         # Action remapping
         if action == 2: # Forward
             action = 1

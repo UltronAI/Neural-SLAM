@@ -110,7 +110,7 @@ def construct_envs(args):
         env_fn_args=tuple(
             tuple(
                 zip(args_list, env_configs, baseline_configs,
-                    range(args.num_processes), args.task_type)
+                    range(args.num_processes), [args.task_type] * args.num_processes)
             )
         ),
     )
