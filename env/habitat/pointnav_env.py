@@ -47,7 +47,7 @@ def _preprocess_depth(depth):
     return depth
 
 
-class Exploration_Env(habitat.RLEnv):
+class PointNavigation_Env(habitat.RLEnv):
 
     def __init__(self, args, rank, config_env, config_baseline, dataset):
         if args.visualize:
@@ -151,6 +151,14 @@ class Exploration_Env(habitat.RLEnv):
         state = rgb.transpose(2, 0, 1)
         depth = _preprocess_depth(obs['depth'])
 
+        # Preprocess observations for point-goal navigation
+        dist, angle = obs['pointgoal']
+        x = int(dist * np.cos(angle) * 20.0)
+        y = int(dist * np.sin(angle) * 20.0)
+        self.pg_loc = [args.map_size_cm // 2 // args.map_resolution + y,
+                       args.map_size_cm // 2 // args.map_resolution + x]
+        self.stop_next_action = 0
+
         # Initialize map and pose
         self.map_size_cm = args.map_size_cm
         self.mapper.reset_map(self.map_size_cm)
@@ -196,15 +204,6 @@ class Exploration_Env(habitat.RLEnv):
         args = self.args
         self.timestep += 1
 
-        # follow the instructions in https://github.com/devendrachaplot/Neural-SLAM/issues/4
-        if self._previous_action == 0:
-            if self.timestep >= args.max_episode_length:
-                done = True
-            else:
-                done = False
-            null_state = np.zeros((3, args.frame_height, args.frame_width))
-            return null_state, 0, done, self.info
-
         # Action remapping
         if action == 2: # Forward
             action = 1
@@ -215,6 +214,9 @@ class Exploration_Env(habitat.RLEnv):
         elif action == 0: # Left
             action = 2
             noisy_action = habitat.SimulatorActions.NOISY_LEFT
+        
+        if self.stop_next_action == 1:
+            action = 0
 
         self.last_loc = np.copy(self.curr_loc)
         self.last_loc_gt = np.copy(self.curr_loc_gt)
@@ -477,7 +479,10 @@ class Exploration_Env(habitat.RLEnv):
 
 
         # Get goal
-        goal = inputs['goal']
+        # goal = inputs['goal']
+        goal = [self.pg_loc[0] - gx1, self.pg_loc[1] - gy1]
+        if pu.get_l2_distance(start[0], goal[0], start[1], goal[1]) * 5 < 25:
+            self.stop_next_action = 1
         goal = pu.threshold_poses(goal, grid.shape)
 
 

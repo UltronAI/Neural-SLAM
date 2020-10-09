@@ -76,6 +76,9 @@ def get_args():
                                 Doom (default: 180)""")
     parser.add_argument("--sim_gpu_id", type=int, default=0,
                         help="gpu id on which scenes are loaded")
+    parser.add_argument("--task_type", type=str,
+                        default="exploration",
+                        choices=["exploration", "pointnav"])
     parser.add_argument("--task_config", type=str,
                         default="tasks/pointnav_gibson.yaml",
                         help="path to config yaml containing task information")
