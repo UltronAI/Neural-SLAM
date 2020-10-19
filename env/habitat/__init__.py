@@ -59,8 +59,9 @@ def construct_envs(args):
                              ["env/habitat/habitat_api/configs/" + args.task_config])
         config_env.defrost()
 
-        # add sensor for point-goal navigation
-        config_env.TASK.SENSORS.append("POINTGOAL_SENSOR")
+        if args.task_type == "pointnav":
+            # add sensor for point-goal navigation
+            config_env.TASK.SENSORS.append("POINTGOAL_SENSOR")
 
         if len(scenes) > 0:
             config_env.DATASET.CONTENT_SCENES = scenes[

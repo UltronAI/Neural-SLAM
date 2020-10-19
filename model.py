@@ -202,6 +202,7 @@ class Neural_SLAM_Module(nn.Module):
                 st_poses = self.st_poses_train.detach_()
                 grid_map = self.grid_map_train.detach_()
 
+            # TODO: why to do so
             st_poses.fill_(0.)
             st_poses[:, 0] = poses[:, 1] * 200. / self.resolution / grid_size
             st_poses[:, 1] = poses[:, 0] * 200. / self.resolution / grid_size
@@ -211,7 +212,7 @@ class Neural_SLAM_Module(nn.Module):
                                           self.device)
 
             grid_map.fill_(0.)
-            grid_map[:, :, vr:, int(vr / 2):int(vr / 2 + vr)] = pred_last
+            grid_map[:, :, vr:, int(vr / 2):int(vr / 2 + vr)] = pred_last # TODO: why?
             translated = F.grid_sample(grid_map, trans_mat)
             rotated = F.grid_sample(translated, rot_mat)
             rotated = rotated[:, :, vr:, int(vr / 2):int(vr / 2 + vr)]
@@ -250,6 +251,7 @@ class Neural_SLAM_Module(nn.Module):
                 agent_view = self.agent_view.detach_()
                 agent_view.fill_(0.)
 
+                # TODO: why
                 x1 = self.map_size_cm // (self.resolution * 2) \
                         - self.vision_range // 2
                 x2 = x1 + self.vision_range
