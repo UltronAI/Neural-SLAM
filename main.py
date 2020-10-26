@@ -17,6 +17,8 @@ from utils.storage import GlobalRolloutStorage, FIFOMemory
 from utils.optimization import get_optimizer
 from model import RL_Policy, Local_IL_Policy, Neural_SLAM_Module
 
+from env.habitat.habitat_api.habitat_baselines.common.tensorboard_utils import TensorboardWriter
+
 import algo
 
 import sys
@@ -66,6 +68,9 @@ def main():
     # Setup Logging
     log_dir = "{}/models/{}/".format(args.dump_location, args.exp_name)
     dump_dir = "{}/dump/{}/".format(args.dump_location, args.exp_name)
+    tensorboard_dir = "{}/tensorboard/{}/".format(args.dump_location, args.exp_name)
+
+    tb_writer = TensorboardWriter(tensorboard_dir, flush_secs=50)
 
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
@@ -369,6 +374,12 @@ def main():
             # ------------------------------------------------------------------
             # Reinitialize variables when episode ends
             if step == args.max_episode_length - 1:  # Last episode step
+                tb_writer.add_scalar(
+                    "cover_rate",
+                    torch.from_numpy(np.asarray(
+                        [infos[env_idx]['cover_rate'] for env_idx in range(num_scenes)])),
+                    ep_num
+                )
                 init_map_and_pose()
                 del last_obs
                 last_obs = obs.detach()
@@ -623,6 +634,42 @@ def main():
 
             # Finish Training
             torch.set_grad_enabled(False)
+            # ------------------------------------------------------------------
+
+            # ------------------------------------------------------------------
+            # Tensorboard Logging
+            if total_num_steps % args.tb_log_interval == 0:
+                if len(g_episode_rewards) > 0:
+                    tb_writer.add_scalar(
+                        "global_reward/step", np.mean(per_step_g_rewards), total_num_steps
+                    )
+                    tb_writer.add_scalar(
+                        "global_rewards/exp", np.mean(g_episode_rewards), total_num_steps
+                    )
+                if args.train_local and len(l_action_losses) > 0:
+                    tb_writer.add_scalar(
+                        "local_loss", np.mean(l_action_losses), total_num_steps
+                    )
+                if args.train_global and len(g_value_losses) > 0:
+                    tb_writer.add_scalar(
+                        "global_loss/value", np.mean(g_value_losses), total_num_steps
+                    )
+                    tb_writer.add_scalar(
+                        "global_loss/action", np.mean(g_action_losses), total_num_steps
+                    )
+                    tb_writer.add_scalar(
+                        "global_loss/distribution", np.mean(g_dist_entropies), total_num_steps
+                    )
+                if args.train_slam and len(costs) > 0:
+                    tb_writer.add_scalar(
+                        "SLAM_loss/proj", np.mean(costs), total_num_steps
+                    )
+                    tb_writer.add_scalar(
+                        "SLAM_loss/exp", np.mean(exp_costs), total_num_steps
+                    )
+                    tb_writer.add_scalar(
+                        "SLAM_loss/pose", np.mean(pose_costs), total_num_steps
+                    )
             # ------------------------------------------------------------------
 
             # ------------------------------------------------------------------

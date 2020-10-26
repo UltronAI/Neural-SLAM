@@ -290,18 +290,25 @@ class Exploration_Env(habitat.RLEnv):
                                  do_gt - do_base]
 
 
-        if self.timestep%args.num_local_steps==0:
-            area, ratio = self.get_global_reward()
+        if self.timestep % args.num_local_steps==0:
+            area, ratio, cover_rate = self.get_global_reward()
             self.info['exp_reward'] = area
             self.info['exp_ratio'] = ratio
+            self.info['cover_rate'] = cover_rate
         else:
             self.info['exp_reward'] = None
             self.info['exp_ratio'] = None
+            self.info['cover_rate'] = None
 
         self.save_position()
 
         if self.info['time'] >= args.max_episode_length:
             done = True
+            if self.info['cover_rate'] == None:
+                area, ratio, cover_rate = self.get_global_reward()
+                self.info['exp_reward'] = area
+                self.info['exp_ratio'] = ratio
+                self.info['cover_rate'] = cover_rate
             if self.args.save_trajectory_data != "0":
                 self.save_trajectory_data()
         else:
@@ -329,7 +336,9 @@ class Exploration_Env(habitat.RLEnv):
 
         m_reward *= 0.02 # Reward Scaling
 
-        return m_reward, m_ratio
+        cover_rate = curr_explored_area / reward_scale
+
+        return m_reward, m_ratio, cover_rate
 
     def get_done(self, observations):
         # This function is not used, Habitat-RLEnv requires this function

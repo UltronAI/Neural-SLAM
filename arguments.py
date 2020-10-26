@@ -34,6 +34,9 @@ def get_args():
                                 1: Train the Neural SLAM Module (default: 1)""")
 
     # Logging, loading models, visualization
+    parser.add_argument('--tb_log_interval', type=int, default=10,
+                        help="""tensorboard log interval, one log per n updates
+                                (default: 10) """)
     parser.add_argument('--log_interval', type=int, default=10,
                         help="""log interval, one log per n updates
                                 (default: 10) """)
