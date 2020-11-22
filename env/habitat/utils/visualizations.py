@@ -1,17 +1,20 @@
 import sys
+import io
 
 import matplotlib
 import numpy as np
 
-if sys.platform == 'darwin':
-    matplotlib.use("tkagg")
-else:
-    matplotlib.use('Agg')
+# if sys.platform == 'darwin':
+#     matplotlib.use("tkagg")
+# else:
+#     matplotlib.use('Agg')
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 import seaborn as sns
 import skimage
-
+import PIL
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
 def visualize(fig, ax, img, grid, pos, gt_pos, dump_dir, rank, ep_no, t,
               visualize, print_images, vis_style):
@@ -24,7 +27,7 @@ def visualize(fig, ax, img, grid, pos, gt_pos, dump_dir, rank, ep_no, t,
 
     ax[0].imshow(img)
     ax[0].set_title("Observation", family='sans-serif',
-                    fontname='Helvetica',
+                    fontname='DejaVu Sans',
                     fontsize=20)
 
     if vis_style == 1:
@@ -34,7 +37,7 @@ def visualize(fig, ax, img, grid, pos, gt_pos, dump_dir, rank, ep_no, t,
 
     ax[1].imshow(grid)
     ax[1].set_title(title, family='sans-serif',
-                    fontname='Helvetica',
+                    fontname='DejaVu Sans',
                     fontsize=20)
 
     # Draw GT agent pose
@@ -76,6 +79,19 @@ def visualize(fig, ax, img, grid, pos, gt_pos, dump_dir, rank, ep_no, t,
         fn = '{}/episodes/{}/{}/{}-{}-Vis-{}.png'.format(
             dump_dir, (rank + 1), ep_no, rank, ep_no, t)
         plt.savefig(fn)
+
+    # canvas = FigureCanvas(fig)
+    # canvas.draw()
+    # img_arr = np.frombuffer(canvas.tostring_rgb(), dtype=np.uint8)
+    # img_arr = img_arr.reshape(canvas.get_width_height()[::-1] + (3,))
+    io_buf = io.BytesIO()
+    fig.savefig(io_buf, format='raw')
+    io_buf.seek(0)
+    img_arr = np.reshape(np.frombuffer(io_buf.getvalue(), dtype=np.uint8),
+                        newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
+    img_arr = img_arr[:, :, :3]
+    io_buf.close()
+    return img_arr
 
 
 def insert_circle(mat, x, y, value):

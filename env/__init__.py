@@ -20,26 +20,26 @@ class VecPyTorch():
         self.device = device
 
     def reset(self):
-        obs, info = self.venv.reset()
+        obs, info, raw_obs = self.venv.reset()
         obs = torch.from_numpy(obs).float().to(self.device)
-        return obs, info
+        return obs, info, raw_obs
 
     def step_async(self, actions):
         actions = actions.cpu().numpy()
         self.venv.step_async(actions)
 
     def step_wait(self):
-        obs, reward, done, info = self.venv.step_wait()
+        obs, reward, done, info, raw_obs = self.venv.step_wait()
         obs = torch.from_numpy(obs).float().to(self.device)
         reward = torch.from_numpy(reward).float()
-        return obs, reward, done, info
+        return obs, reward, done, info, raw_obs
 
     def step(self, actions):
         actions = actions.cpu().numpy()
-        obs, reward, done, info = self.venv.step(actions)
+        obs, reward, done, info, raw_obs = self.venv.step(actions)
         obs = torch.from_numpy(obs).float().to(self.device)
         reward = torch.from_numpy(reward).float()
-        return obs, reward, done, info
+        return obs, reward, done, info, raw_obs
 
     def get_rewards(self, inputs):
         reward = self.venv.get_rewards(inputs)
@@ -47,9 +47,10 @@ class VecPyTorch():
         return reward
 
     def get_short_term_goal(self, inputs):
-        stg = self.venv.get_short_term_goal(inputs)
+        stg, fig = self.venv.get_short_term_goal(inputs)
         stg = torch.from_numpy(stg).float()
-        return stg
+        fig = torch.from_numpy(fig).float()
+        return stg, fig
 
     def close(self):
         return self.venv.close()

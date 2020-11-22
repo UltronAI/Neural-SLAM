@@ -185,11 +185,12 @@ class Exploration_Env(habitat.RLEnv):
             'fp_explored': fp_explored,
             'sensor_pose': [0., 0., 0.],
             'pose_err': [0., 0., 0.],
+            'cover_rate': 0
         }
 
         self.save_position()
 
-        return state, self.info
+        return state, self.info, obs
 
     def step(self, action):
 
@@ -288,33 +289,28 @@ class Exploration_Env(habitat.RLEnv):
         self.info['pose_err'] = [dx_gt - dx_base,
                                  dy_gt - dy_base,
                                  do_gt - do_base]
+        self.info['cover_rate'] = self.get_global_cover_rate()
 
-
-        if self.timestep % args.num_local_steps==0:
-            area, ratio, cover_rate = self.get_global_reward()
+        if self.timestep % args.num_local_steps == 0:
+            area, ratio = self.get_global_reward()
             self.info['exp_reward'] = area
             self.info['exp_ratio'] = ratio
-            self.info['cover_rate'] = cover_rate
         else:
             self.info['exp_reward'] = None
             self.info['exp_ratio'] = None
-            self.info['cover_rate'] = None
+
+        self.info.update(self.habitat_env.get_metrics())
 
         self.save_position()
 
         if self.info['time'] >= args.max_episode_length:
             done = True
-            if self.info['cover_rate'] == None:
-                area, ratio, cover_rate = self.get_global_reward()
-                self.info['exp_reward'] = area
-                self.info['exp_ratio'] = ratio
-                self.info['cover_rate'] = cover_rate
             if self.args.save_trajectory_data != "0":
                 self.save_trajectory_data()
         else:
             done = False
 
-        return state, rew, done, self.info
+        return state, rew, done, self.info, obs
 
     def get_reward_range(self):
         # This function is not used, Habitat-RLEnv requires this function
@@ -323,6 +319,12 @@ class Exploration_Env(habitat.RLEnv):
     def get_reward(self, observations):
         # This function is not used, Habitat-RLEnv requires this function
         return 0.
+
+    def get_global_cover_rate(self):
+        curr_explored = self.explored_map*self.explorable_map
+        curr_explored_area = curr_explored.sum()
+        reward_scale = self.explorable_map.sum()
+        return curr_explored_area / reward_scale
 
     def get_global_reward(self):
         curr_explored = self.explored_map*self.explorable_map
@@ -336,9 +338,7 @@ class Exploration_Env(habitat.RLEnv):
 
         m_reward *= 0.02 # Reward Scaling
 
-        cover_rate = curr_explored_area / reward_scale
-
-        return m_reward, m_ratio, cover_rate
+        return m_reward, m_ratio
 
     def get_done(self, observations):
         # This function is not used, Habitat-RLEnv requires this function
@@ -537,7 +537,7 @@ class Exploration_Env(habitat.RLEnv):
 
         self.relative_angle = relative_angle
 
-        if args.visualize or args.print_images:
+        if args.tb_show_map or args.visualize or args.print_images:
             dump_dir = "{}/dump/{}/".format(args.dump_location,
                                                 args.exp_name)
             ep_dir = '{}/episodes/{}/{}/'.format(
@@ -556,7 +556,7 @@ class Exploration_Env(habitat.RLEnv):
                                 self.map[gx1:gx2, gy1:gy2] *
                                     self.explored_map[gx1:gx2, gy1:gy2])
                 vis_grid = np.flipud(vis_grid)
-                vu.visualize(self.figure, self.ax, self.obs, vis_grid[:,:,::-1],
+                fig = vu.visualize(self.figure, self.ax, self.obs, vis_grid[:,:,::-1],
                             (start_x - gy1*args.map_resolution/100.0,
                              start_y - gx1*args.map_resolution/100.0,
                              start_o),
@@ -577,14 +577,14 @@ class Exploration_Env(habitat.RLEnv):
                                 self.explorable_map,
                                 self.map*self.explored_map)
                 vis_grid = np.flipud(vis_grid)
-                vu.visualize(self.figure, self.ax, self.obs, vis_grid[:,:,::-1],
+                fig = vu.visualize(self.figure, self.ax, self.obs, vis_grid[:,:,::-1],
                             (start_x_gt, start_y_gt, start_o_gt),
                             (start_x_gt, start_y_gt, start_o_gt),
                             dump_dir, self.rank, self.episode_no,
                             self.timestep, args.visualize,
                             args.print_images, args.vis_type)
 
-        return output
+        return output, fig
 
     def _get_gt_map(self, full_map_size):
         self.scene_name = self.habitat_env.sim.config.SCENE

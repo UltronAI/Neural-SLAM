@@ -18,6 +18,7 @@ from utils.optimization import get_optimizer
 from model import RL_Policy, Local_IL_Policy, Neural_SLAM_Module
 
 from env.habitat.habitat_api.habitat_baselines.common.tensorboard_utils import TensorboardWriter
+from env.habitat.habitat_api.habitat.utils.visualizations.utils import observations_to_image
 
 import algo
 
@@ -122,7 +123,7 @@ def main():
     # Starting environments
     torch.set_num_threads(1)
     envs = make_vec_envs(args)
-    obs, infos = envs.reset()
+    obs, infos, raw_obs = envs.reset()
 
     # Initialize map variables
     ### Full map consists of 4 channels containing the following:
@@ -319,7 +320,7 @@ def main():
         p_input['pose_pred'] = planner_pose_inputs[e]
 
     # Output stores local goals as well as the the ground-truth action
-    output = envs.get_short_term_goal(planner_inputs)
+    output, v_fig = envs.get_short_term_goal(planner_inputs)
 
     last_obs = obs.detach()
     local_rec_states = torch.zeros(num_scenes, l_hidden_size).to(device)
@@ -327,6 +328,11 @@ def main():
 
     total_num_steps = -1
     g_reward = 0
+
+    video_frames = [[]] * args.tb_num_samples
+    map_frames = [[]] * args.tb_num_samples
+    # for i_tb in range(args.tb_num_samples):
+    map_frames[0].append(v_fig[0].cpu().numpy())
 
     torch.set_grad_enabled(False)
 
@@ -364,7 +370,7 @@ def main():
 
             # ------------------------------------------------------------------
             # Env step
-            obs, rew, done, infos = envs.step(l_action)
+            obs, rew, done, infos, raw_obs = envs.step(l_action)
 
             l_masks = torch.FloatTensor([0 if x else 1
                                          for x in done]).to(device)
@@ -376,13 +382,22 @@ def main():
             if step == args.max_episode_length - 1:  # Last episode step
                 tb_writer.add_scalar(
                     "cover_rate",
-                    torch.from_numpy(np.asarray(
-                        [infos[env_idx]['cover_rate'] for env_idx in range(num_scenes)])),
-                    ep_num
-                )
+                    np.asarray(
+                        [infos[env_idx]["cover_rate"] for env_idx in range(num_scenes)]).mean(),
+                    ep_num)
+                if args.tb_video_log_interval > 0 and ep_num % args.tb_video_log_interval == 0:
+                    # for i_tb in range(args.tb_num_samples):
+                    tb_writer.add_video_from_np_images(f"obs/scene_{0}", ep_num, video_frames[0], fps=10)
+                    tb_writer.add_video_from_np_images(f"map/scene_{0}", ep_num, map_frames[0], fps=10)
+                video_frames = [[]] * args.tb_num_samples
+                map_frames = [[]] * args.tb_num_samples
                 init_map_and_pose()
                 del last_obs
                 last_obs = obs.detach()
+            else:
+                # for i_tb in range(args.tb_num_samples):
+                frame = observations_to_image(raw_obs[0], infos[0])
+                video_frames[0].append(frame)
             # ------------------------------------------------------------------
 
             # ------------------------------------------------------------------
@@ -542,7 +557,10 @@ def main():
                 p_input['pose_pred'] = planner_pose_inputs[e]
                 p_input['goal'] = global_goals[e]
 
-            output = envs.get_short_term_goal(planner_inputs)
+            output, v_fig = envs.get_short_term_goal(planner_inputs)
+
+            # for i_tb in range(args.tb_num_samples):
+            map_frames[0].append(v_fig[0].cpu().numpy())
             # ------------------------------------------------------------------
 
             ### TRAINING
