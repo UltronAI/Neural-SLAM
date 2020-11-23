@@ -158,6 +158,8 @@ class ObjectNav_Env(habitat.RLEnv):
         semantic = obs['semantic']
         state['semantic'] = semantic
 
+        metrics = self.habitat_env.get_metrics()
+
         # Initialize map and pose
         self.map_size_cm = args.map_size_cm
         self.mapper.reset_map(self.map_size_cm)
