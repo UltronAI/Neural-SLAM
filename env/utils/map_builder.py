@@ -32,7 +32,8 @@ class MapBuilder(object):
         self.agent_view_angle = params['agent_view_angle']
         return
 
-    def update_map(self, depth, current_pose):
+    def update_map(self, depth, semantic, current_pose):
+        # TODO: add the projection for semantic map
         with np.errstate(invalid="ignore"):
             depth[depth > self.vision_range * self.resolution] = np.NaN
         point_cloud = du.get_point_cloud_from_z(depth, self.camera_matrix, \

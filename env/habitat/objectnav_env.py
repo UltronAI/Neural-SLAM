@@ -47,7 +47,7 @@ def _preprocess_depth(depth):
     return depth
 
 
-class ObjectNavigation_Env(habitat.RLEnv):
+class ObjectNav_Env(habitat.RLEnv):
 
     def __init__(self, args, rank, config_env, config_baseline, dataset):
         if args.visualize:
@@ -143,13 +143,20 @@ class ObjectNavigation_Env(habitat.RLEnv):
             self.explorable_map = self._get_gt_map(full_map_size)
         self.prev_explored_area = 0.
 
+        state = {}
+
         # Preprocess observations
         rgb = obs['rgb'].astype(np.uint8)
         self.obs = rgb # For visualization
         if self.args.frame_width != self.args.env_frame_width:
             rgb = np.asarray(self.res(rgb))
-        state = rgb.transpose(2, 0, 1)
+        state['rgb'] = rgb.transpose(2, 0, 1)
         depth = _preprocess_depth(obs['depth'])
+        # TODO: check the shape of depth
+        state['depth'] = depth
+        # TODO: check the validity of semantic map
+        semantic = obs['semantic']
+        state['semantic'] = semantic
 
         # Initialize map and pose
         self.map_size_cm = args.map_size_cm
@@ -167,8 +174,8 @@ class ObjectNavigation_Env(habitat.RLEnv):
                           np.deg2rad(self.curr_loc_gt[2]))
 
         # Update ground_truth map and explored area
-        fp_proj, self.map, fp_explored, self.explored_map = \
-            self.mapper.update_map(depth, mapper_gt_pose)
+        fp_proj, self.map, fp_explored, self.explored_map, fp_semantic, self.semantic_map = \
+            self.mapper.update_map(depth, semantic, mapper_gt_pose) # FIXME
 
         # Initialize variables
         self.scene_name = self.habitat_env.sim.config.SCENE
@@ -183,6 +190,7 @@ class ObjectNavigation_Env(habitat.RLEnv):
             'time': self.timestep,
             'fp_proj': fp_proj,
             'fp_explored': fp_explored,
+            'fp_semantic': fp_semantic,
             'sensor_pose': [0., 0., 0.],
             'pose_err': [0., 0., 0.],
         }
@@ -216,15 +224,21 @@ class ObjectNavigation_Env(habitat.RLEnv):
         else:
             obs, rew, done, info = super().step(action)
 
+        state = {}
+
         # Preprocess observations
         rgb = obs['rgb'].astype(np.uint8)
         self.obs = rgb # For visualization
         if self.args.frame_width != self.args.env_frame_width:
             rgb = np.asarray(self.res(rgb))
 
-        state = rgb.transpose(2, 0, 1)
+        state['rgb'] = rgb.transpose(2, 0, 1)
 
         depth = _preprocess_depth(obs['depth'])
+        state['depth'] = depth
+
+        semantic = obs['semantic']
+        state['semantic'] = semantic
 
         # Get base sensor and ground-truth pose
         dx_gt, dy_gt, do_gt = self.get_gt_pose_change()
@@ -248,8 +262,8 @@ class ObjectNavigation_Env(habitat.RLEnv):
 
 
         # Update ground_truth map and explored area
-        fp_proj, self.map, fp_explored, self.explored_map = \
-                self.mapper.update_map(depth, mapper_gt_pose)
+        fp_proj, self.map, fp_explored, self.explored_map, fp_semantic, self.semantic_map = \
+                self.mapper.update_map(depth, semantic, mapper_gt_pose) # FIXME
 
 
         # Update collision map
@@ -284,6 +298,7 @@ class ObjectNavigation_Env(habitat.RLEnv):
         self.info['time'] = self.timestep
         self.info['fp_proj'] = fp_proj
         self.info['fp_explored']= fp_explored
+        self.info['fp_semantic'] = fp_semantic
         self.info['sensor_pose'] = [dx_base, dy_base, do_base]
         self.info['pose_err'] = [dx_gt - dx_base,
                                  dy_gt - dy_base,
@@ -318,16 +333,16 @@ class ObjectNavigation_Env(habitat.RLEnv):
         return 0.
 
     def get_global_reward(self):
-        curr_explored = self.explored_map*self.explorable_map
-        curr_explored_area = curr_explored.sum()
+        # curr_explored = self.explored_map*self.explorable_map
+        # curr_explored_area = curr_explored.sum()
 
-        reward_scale = self.explorable_map.sum()
-        m_reward = (curr_explored_area - self.prev_explored_area)*1.
-        m_ratio = m_reward/reward_scale
-        m_reward = m_reward * 25./10000. # converting to m^2
-        self.prev_explored_area = curr_explored_area
+        # reward_scale = self.explorable_map.sum()
+        # m_reward = (curr_explored_area - self.prev_explored_area)*1.
+        # m_ratio = m_reward/reward_scale
+        # m_reward = m_reward * 25./10000. # converting to m^2
+        # self.prev_explored_area = curr_explored_area
 
-        m_reward *= 0.02 # Reward Scaling
+        # m_reward *= 0.02 # Reward Scaling
 
         return m_reward, m_ratio
 

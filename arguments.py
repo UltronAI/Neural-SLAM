@@ -77,7 +77,7 @@ def get_args():
     parser.add_argument("--sim_gpu_id", type=int, default=0,
                         help="gpu id on which scenes are loaded")
     parser.add_argument("--task_config", type=str,
-                        default="tasks/pointnav_gibson.yaml",
+                        default="tasks/objectnav_mp3d.yaml",
                         help="path to config yaml containing task information")
     parser.add_argument("--split", type=str, default="train",
                         help="dataset split (train | val | val_mini) ")
@@ -181,6 +181,13 @@ def get_args():
             elif "gibson" in args.task_config and \
                     "val" in args.split:
                 args.total_num_scenes = 1
+            # TODO: add the support for matterport3d
+            elif "mp3d" in args.task_config and \
+                    "train" in args.split:
+                pass
+            elif "mp3d" in args.task_config and \
+                    "val" in args.split:
+                pass
             else:
                 assert False, "Unknown task config, please specify" + \
                         " total_num_scenes"
