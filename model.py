@@ -381,7 +381,7 @@ class Local_IL_Policy(NNBase):
 
         return action, x, rnn_hxs
 
-
+# TODO: add object_goal as input
 # https://github.com/ikostrikov/pytorch-a2c-ppo-acktr-gail/blob/master/a2c_ppo_acktr/model.py#L15
 class RL_Policy(nn.Module):
 

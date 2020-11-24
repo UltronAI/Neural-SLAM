@@ -159,6 +159,7 @@ class ObjectNav_Env(habitat.RLEnv):
         state['semantic'] = semantic
 
         metrics = self.habitat_env.get_metrics()
+        self.goal = obs['objectgoal']
 
         # Initialize map and pose
         self.map_size_cm = args.map_size_cm
@@ -206,6 +207,14 @@ class ObjectNav_Env(habitat.RLEnv):
         args = self.args
         self.timestep += 1
 
+        if self._previous_action == 0:
+            if self.timestep >= args.max_episode_length:
+                done = True
+            else:
+                done = False
+            null_state = np.zeros((3, args.frame_height, args.frame_width))
+            return null_state, 0, done, self.info
+
         # Action remapping
         if action == 2: # Forward
             action = 1
@@ -216,6 +225,9 @@ class ObjectNav_Env(habitat.RLEnv):
         elif action == 0: # Left
             action = 2
             noisy_action = habitat.SimulatorActions.NOISY_LEFT
+
+        if self.stop_next_action == 1:
+            action = 0
 
         self.last_loc = np.copy(self.curr_loc)
         self.last_loc_gt = np.copy(self.curr_loc_gt)

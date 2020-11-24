@@ -181,13 +181,12 @@ def get_args():
             elif "gibson" in args.task_config and \
                     "val" in args.split:
                 args.total_num_scenes = 1
-            # TODO: add the support for matterport3d
             elif "mp3d" in args.task_config and \
                     "train" in args.split:
-                pass
+                args.total_num_scenes = 56
             elif "mp3d" in args.task_config and \
                     "val" in args.split:
-                pass
+                args.total_num_scenes = 11
             else:
                 assert False, "Unknown task config, please specify" + \
                         " total_num_scenes"
